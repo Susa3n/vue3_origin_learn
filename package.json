@@ -1,0 +1,23 @@
+{
+  "name": "vue3_origin",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node scripts/dev.js reactivity -f global"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^23.0.0",
+    "@rollup/plugin-json": "^5.0.0",
+    "@rollup/plugin-node-resolve": "^15.0.0",
+    "esbuild": "^0.15.11",
+    "execa": "^6.1.0",
+    "minimist": "^1.2.7",
+    "rollup": "^3.2.3",
+    "rollup-plugin-typescript2": "^0.34.1",
+    "typescript": "^4.8.4"
+  }
+}
