@@ -20,6 +20,7 @@ var VueReactivity = (() => {
   // packages/reactivity/src/index.ts
   var src_exports = {};
   __export(src_exports, {
+    effect: () => effect,
     reactive: () => reactive,
     readonly: () => readonly,
     shallowReactive: () => shallowReactive,
@@ -31,69 +32,127 @@ var VueReactivity = (() => {
     return typeof value === "object" && value !== null;
   };
   var isArray = Array.isArray;
+  var assign = (target, ...argus) => {
+    return Object.assign(target, ...argus);
+  };
 
-  // packages/reactivity/src/handlers.ts
-  function createHandlerGet(shallow = false, isReadonly = false) {
-    return function get(target, key, receiver) {
-      const res = Reflect.get(target, key, receiver);
-      if (!isReadonly) {
-        console.log("\u6536\u96C6\u4F9D\u8D56....");
+  // packages/reactivity/src/effect.ts
+  function effect(fn, options = {}) {
+    const effect2 = createEffect(fn, options);
+    if (!options.lazy) {
+      effect2();
+    }
+    return effect2;
+  }
+  var uuid = 0;
+  var effectStack = [];
+  var activeEffect = null;
+  function createEffect(fn, options) {
+    const effect2 = function createReactiveEffect() {
+      if (!effectStack.includes(effect2)) {
+        try {
+          effectStack.push(effect2);
+          activeEffect = effect2;
+          return fn();
+        } finally {
+          effectStack.pop();
+          activeEffect = effectStack[effectStack.length - 1];
+        }
       }
-      if (shallow) {
+    };
+    effect2.uuid = uuid++;
+    effect2._isEffect = true;
+    effect2.raw = effect2;
+    effect2.options = options;
+    return effect2;
+  }
+  var targetMap = /* @__PURE__ */ new WeakMap();
+  function track(target, type, key) {
+    if (!activeEffect) {
+      return;
+    }
+    let depsMap = targetMap.get(target);
+    if (!depsMap) {
+      depsMap = targetMap.set(target, /* @__PURE__ */ new Map());
+    }
+    let dep = depsMap.get(key);
+    if (!dep) {
+      depsMap.set(key, dep = /* @__PURE__ */ new Set());
+    }
+    if (!dep.has(activeEffect)) {
+      dep.add(activeEffect);
+    }
+  }
+
+  // packages/reactivity/src/baseHandles.ts
+  function createGetter(isShallow = false, isReadonly = false) {
+    return function get2(target, key, receiver) {
+      let res = Reflect.get(target, key);
+      if (!isReadonly) {
+        console.log("\u6536\u96C6\u4F9D\u8D56...", key);
+        track(target, "get" /* GET */, key);
+      }
+      if (isShallow) {
         return res;
       }
       if (isObject(res)) {
-        return isReadonly ? readonly(res) : reactive(res);
+        isReadonly ? readonly(res) : reactive(res);
       }
       return res;
     };
   }
-  function createHandlerSet(shallow = false) {
-    return function set(target, key, value, receiver) {
-      const res = Reflect.set(target, key, value, receiver);
+  function createSetter(isShallow = false) {
+    return function set2(target, key, newValue, receiver) {
+      const res = Reflect.set(target, key, newValue, receiver);
       return res;
     };
   }
+  var get = createGetter();
+  var shallowGet = createGetter(true);
+  var readonlyGet = createGetter(false, true);
+  var shallowReadonlyGet = createGetter(true, true);
+  var set = createSetter();
+  var shallowSet = createGetter(true);
+  var notSet = {
+    set: (target, key, newvalue) => {
+      console.warn(`not set on ${target} the key '${key}' `);
+    }
+  };
   var mutableHandlers = {
-    get: createHandlerGet(),
-    set: createHandlerSet()
+    get,
+    set
   };
-  var shallowMutableHandlers = {
-    get: createHandlerGet(true),
-    set: createHandlerSet(true)
+  var shallowReactiveHandlers = {
+    get: shallowGet,
+    set: shallowSet
   };
-  var readonlyHandlers = {
-    get: createHandlerGet(false, true),
-    set(target, key, value, receiver) {
-      console.warn(`set ${target} on the ${key} fail`);
-    }
-  };
-  var shallowReadonlyHandlers = {
-    get: createHandlerGet(true, true),
-    set(target, key, value, receiver) {
-      console.warn(`set ${target} on the ${key} fail`);
-    }
-  };
+  var readonlyHandlers = assign({
+    get: readonlyGet
+  }, notSet);
+  var shallowReadonlyHandlers = assign({
+    get: shallowReadonlyGet
+  }, notSet);
 
-  // packages/reactivity/src/index.ts
-  var readonlyMap = /* @__PURE__ */ new WeakMap();
+  // packages/reactivity/src/reactive.ts
   var reactiveMap = /* @__PURE__ */ new WeakMap();
-  function createReactiveObject(target, isReadonly = false, baseHandlers) {
+  var readonlyMap = /* @__PURE__ */ new WeakMap();
+  function createReactiveObject(target, readonly2, baseHandlers) {
     if (!isObject(target)) {
       return target;
     }
-    const baseMap = isReadonly ? readonlyMap : reactiveMap;
-    if (baseMap.get(target))
+    const baseMap = readonly2 ? readonlyMap : reactiveMap;
+    if (baseMap.get(target)) {
       return baseMap.get(target);
-    const proxyTarget = new Proxy(target, baseHandlers);
-    baseMap.set(target, proxyTarget);
-    return proxyTarget;
+    }
+    let proxy = new Proxy(target, baseHandlers);
+    baseMap.set(target, proxy);
+    return proxy;
   }
   function reactive(target) {
     return createReactiveObject(target, false, mutableHandlers);
   }
   function shallowReactive(target) {
-    return createReactiveObject(target, false, shallowMutableHandlers);
+    return createReactiveObject(target, false, shallowReactiveHandlers);
   }
   function readonly(target) {
     return createReactiveObject(target, true, readonlyHandlers);

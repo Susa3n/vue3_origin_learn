@@ -27,3 +27,8 @@ export const isNumber =(value)=>{
  * 判断数组
  */
 export const isArray = Array.isArray
+
+// 合并
+export const assign = (target,...argus) => {
+  return Object.assign(target,...argus)
+} 

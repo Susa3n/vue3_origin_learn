@@ -7,11 +7,11 @@
   </head>
   <body>
     <div id="app"></div>
-  <script src="./dist/reactivity.global.js"></script>
-  <!-- <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script> -->
+  <!-- <script src="./dist/reactivity.global.js"></script> -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <script>
-    const {reactive,shallowReactive,readonly,shallowReadonly } = VueReactivity
-    // console.log(reactive,shallowReactive,readonly,shallowReadonly);
+    const {reactive,shallowReactive,readonly,shallowReadonly,effect } = VueReactivity
+    // const {reactive,shallowReactive,readonly,shallowReadonly,effect } = Vue
     let info = {
       name: 'susa3n',
       age: {
@@ -21,20 +21,15 @@
         }
       }
     }
-    // const state = reactive(info)
-    // const state = readonly(info)
-    // const state = shallowReadonly(info)
-    const state = shallowReactive(info)
-    // console.log(state.name);
-    // state.name = 'xxx'
-    // console.log(state.name);
-    console.log('hr-----------------------------------');
-    console.log(state.age.test.a);
-    state.age.test.a = 20
-    console.log(state.age.test.a);
 
-    // console.log(state.age.n);
+    let state = reactive(info)
 
+    effect(() => {
+      app.innerHTML = '我是名字' + state.name + '  我的年龄' + state.age.n
+    })
+
+
+  
 
     
   </script>
