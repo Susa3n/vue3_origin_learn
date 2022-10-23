@@ -1,3 +1,5 @@
+import { isArray, isIntegerKey } from "@my-vue/shared"
+import { TriggerOrTypes } from "./operations"
 /**
  * 
  * @param fn 回调函数
@@ -22,7 +24,7 @@ let uuid = 0 // 每个副作用函数都有一个单独的id
 const effectStack = []
 // activeEffect这个关键字类似vue2中的Dep.target，代表当前的副作用函数
 // 先设置当前副作用函数，再调用，在副作用函数中用到的属性，当读取属性时，属性可以收集关联的函数，之后属性发生变化通知关联的函数重新执行
-let activeEffect = null 
+let activeEffect = null
 
 function createEffect(fn, options) {
   // 创建响应式副作用函数
@@ -75,10 +77,55 @@ export function track(target, type, key) {
     dep = new Set()
     depsMap.set(key, dep)
   }
+
   // 再去判断是否有当前副作用函数，如果有进行收集
+
   if (!dep.has(activeEffect)) {
     dep.add(activeEffect)
   }
+}
 
 
+export function trigger(target, type, key?, newValue?, oldValue?) {
+  // console.log(target,type,key,value,oldValue);
+  // 如果这个属性没有收集过副作用函数 直接return 不做什么
+  const depsMap = targetMap.get(target)
+  if (!depsMap) {
+    return
+  }
+
+  // 需要该属性收集过的所有副作用函数，放到一起统一执行
+  const effects = new Set()
+  const add = (effectsToAdd) => { 
+    if(effectsToAdd) {
+      effectsToAdd.forEach(effect => {
+        effects.add(effect)
+      });
+    }
+  }
+  // 1.看修改的是数组的长度的话 因为改长度影响比较大 进行收集,并且值必须小于旧数组的长度
+  if (key === 'length' && isArray(target)) {
+    depsMap.forEach((dep, key) => {
+      if (typeof key != 'symbol') {
+        if (key === 'length' || key > newValue) {
+          add(dep)
+        }
+      }
+    });
+  }else {
+    // 可能是对象
+    if(key !== undefined) {
+      add(depsMap.get(target))
+    }
+
+    // 如果修改的是索引
+    switch (type) { // 如果新添加的是一个索引
+      case TriggerOrTypes.ADD:
+        if(isArray(target) && isIntegerKey(key)) {
+          add(depsMap.get(target))
+        }
+        break;
+    }
+  }
+  effects.forEach((effect:any) =>effect());
 }

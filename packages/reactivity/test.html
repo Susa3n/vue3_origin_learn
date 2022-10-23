@@ -14,6 +14,7 @@
     // const {reactive,shallowReactive,readonly,shallowReadonly,effect } = Vue
     let info = {
       name: 'susa3n',
+      arr: [1,2,3],
       age: {
         n:18,
         test:{
@@ -22,13 +23,16 @@
       }
     }
 
-    let state = reactive(info)
+    let state = reactive({test:[1,3,2,1,3,4]})
 
     effect(() => {
-      app.innerHTML = '我是名字' + state.name + '  我的年龄' + state.age.n
+      console.log('render~~');
+      console.log(state.test);
+      app.innerHTML =  state.test[4]
     })
     setTimeout(() => {
-      info.name = 'xxxxx'
+      state.test.length = 1
+      console.log(state.test);
     }, 1000);
 
   

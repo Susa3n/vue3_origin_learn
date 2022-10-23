@@ -35,6 +35,14 @@ var VueReactivity = (() => {
   var assign = (target, ...argus) => {
     return Object.assign(target, ...argus);
   };
+  var isIntegerKey = (key) => {
+    return parseInt(key) + "" == key;
+  };
+  var hasOwn = (target, key) => {
+    const hasOwnKey = Object.prototype.hasOwnProperty;
+    return hasOwnKey.call(target, key);
+  };
+  var hasChange = (value, oldValue) => value !== oldValue;
 
   // packages/reactivity/src/effect.ts
   function effect(fn, options = {}) {
@@ -84,6 +92,41 @@ var VueReactivity = (() => {
       dep.add(activeEffect);
     }
   }
+  function trigger(target, type, key, newValue, oldValue) {
+    const depsMap = targetMap.get(target);
+    if (!depsMap) {
+      return;
+    }
+    const effects = /* @__PURE__ */ new Set();
+    const add = (effectsToAdd) => {
+      if (effectsToAdd) {
+        effectsToAdd.forEach((effect2) => {
+          effects.add(effect2);
+        });
+      }
+    };
+    if (key === "length" && isArray(target)) {
+      depsMap.forEach((dep, key2) => {
+        if (typeof key2 != "symbol") {
+          if (key2 === "length" || key2 > newValue) {
+            add(dep);
+          }
+        }
+      });
+    } else {
+      if (key !== void 0) {
+        add(depsMap.get(target));
+      }
+      switch (type) {
+        case 0 /* ADD */:
+          if (isArray(target) && isIntegerKey(key)) {
+            add(depsMap.get(target));
+          }
+          break;
+      }
+    }
+    effects.forEach((effect2) => effect2());
+  }
 
   // packages/reactivity/src/baseHandles.ts
   function createGetter(isShallow = false, isReadonly = false) {
@@ -96,14 +139,21 @@ var VueReactivity = (() => {
         return res;
       }
       if (isObject(res)) {
-        isReadonly ? readonly(res) : reactive(res);
+        return isReadonly ? readonly(res) : reactive(res);
       }
       return res;
     };
   }
   function createSetter(isShallow = false) {
     return function set2(target, key, newValue, receiver) {
+      let oldValue = target[key];
+      const hadKey = isArray(target) && isIntegerKey(key) ? Number(key) < target.length : hasOwn(target, key);
       const res = Reflect.set(target, key, newValue, receiver);
+      if (!hadKey) {
+        trigger(target, 0 /* ADD */, key, newValue);
+      } else if (hasChange(newValue, oldValue)) {
+        trigger(target, 0 /* ADD */, key, newValue, oldValue);
+      }
       return res;
     };
   }

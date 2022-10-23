@@ -25,7 +25,6 @@ function createReactiveObject(target,readonly,baseHandlers) {
   let proxy = new Proxy(target,baseHandlers)
   baseMap.set(target,proxy) // 将代理过的对象存到map中
   return proxy
-
 }
 
 function reactive(target) { // 响应式数据
