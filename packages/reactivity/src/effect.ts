@@ -1,51 +1,82 @@
-export function effect(fn,options:any = {}) {
-
-  const effect = createEffect(fn,options)
-  if(!options.lazy) {
+/**
+ * 
+ * @param fn 回调函数
+ * @param options 配置对象
+ * @returns 返回effect函数
+ */
+export function effect(fn, options: any = {}) {
+  // 创建副作用函数，传入回调函数和配置对象
+  const effect = createEffect(fn, options)
+  // 根据配置对象lazy属性是否是延迟的,如果不是直接调用
+  if (!options.lazy) {
     effect()
   }
 
   return effect
 }
 
-let uuid = 0
+let uuid = 0 // 每个副作用函数都有一个单独的id
+// effectStack的作用，是一个栈，收集副作用函数，主要作用：如果在一个副作用函数再嵌套一个副作用函数
+// 内层副作用函数用到的属性收集完毕后，将activeEffect置为null。但是外层副作用函数还有可能有属性要收集外层的副作用函数
+// 所以要维护一个栈的结构，如果内层副作用函数收集完毕后，将栈中的最后一个函数移除（pop），且将activeEffect置为栈中的最后一个函数
 const effectStack = []
-let activeEffect = null
-function createEffect(fn,options) {
+// activeEffect这个关键字类似vue2中的Dep.target，代表当前的副作用函数
+// 先设置当前副作用函数，再调用，在副作用函数中用到的属性，当读取属性时，属性可以收集关联的函数，之后属性发生变化通知关联的函数重新执行
+let activeEffect = null 
+
+function createEffect(fn, options) {
+  // 创建响应式副作用函数
   const effect = function createReactiveEffect() {
-    if(!effectStack.includes(effect)) {
+    // 判断栈中是否有这个副作用函数，如果没有进行收集
+    if (!effectStack.includes(effect)) {
       try {
+        // 将当前副作用函数添加（push）到栈中
         effectStack.push(effect)
+        //将当前副作用函数设置为activeEffect
         activeEffect = effect
+        // 执行用户传入的回调函数，会触发属性的依赖收集，调用tract函数
         return fn()
-      } finally {
+      }
+      finally {
         effectStack.pop()
-        activeEffect = effectStack[effectStack.length-1]
+        activeEffect = effectStack[effectStack.length - 1]
       }
     }
   }
   effect.uuid = uuid++
-  effect._isEffect = true 
+  effect._isEffect = true
   effect.raw = effect
   effect.options = options
-
   return effect
 }
 const targetMap = new WeakMap()
-export function track(target,type,key) {
-  if(!activeEffect) {
+/**
+ * 
+ * @param target 收集依赖的目标对象
+ * @param type 类型
+ * @param key 当前的key
+ * @returns 
+ */
+export function track(target, type, key) {
+  // 如果当前没有副作用函数 直接返回
+  if (!activeEffect) {
     return
   }
-
-  let depsMap = targetMap.get(target) 
-  if(!depsMap) {
-    depsMap = targetMap.set(target,new Map())
+  // 创建一个weakmap对象。用于收集代理的目标对象
+  // 首先判断有没有，如果没有创建一个，key是当前目标对象 值是一个map对象
+  let depsMap = targetMap.get(target)
+  if (!depsMap) {
+    targetMap.set(target, depsMap = new Map)
   }
+  // 再通过key判断map对象中是已经收集过
   let dep = depsMap.get(key)
-  if(!dep) {
-    depsMap.set(key,(dep = new Set()))
+  // 如果没有，创建一个set的实例，
+  if (!dep) {
+    dep = new Set()
+    depsMap.set(key, dep)
   }
-  if(!dep.has(activeEffect)) {
+  // 再去判断是否有当前副作用函数，如果有进行收集
+  if (!dep.has(activeEffect)) {
     dep.add(activeEffect)
   }
 

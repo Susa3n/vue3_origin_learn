@@ -73,11 +73,12 @@ var VueReactivity = (() => {
     }
     let depsMap = targetMap.get(target);
     if (!depsMap) {
-      depsMap = targetMap.set(target, /* @__PURE__ */ new Map());
+      targetMap.set(target, depsMap = /* @__PURE__ */ new Map());
     }
     let dep = depsMap.get(key);
     if (!dep) {
-      depsMap.set(key, dep = /* @__PURE__ */ new Set());
+      dep = /* @__PURE__ */ new Set();
+      depsMap.set(key, dep);
     }
     if (!dep.has(activeEffect)) {
       dep.add(activeEffect);
@@ -89,7 +90,6 @@ var VueReactivity = (() => {
     return function get2(target, key, receiver) {
       let res = Reflect.get(target, key);
       if (!isReadonly) {
-        console.log("\u6536\u96C6\u4F9D\u8D56...", key);
         track(target, "get" /* GET */, key);
       }
       if (isShallow) {
